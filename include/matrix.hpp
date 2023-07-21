@@ -12,7 +12,7 @@ struct Shape {
 
     Shape() = default;
 
-    auto operator==(const Shape& b) -> bool {
+    auto operator==(const Shape& b) const -> bool {
         return height == b.height and width == b.width and channels == b.channels;
     }
     
