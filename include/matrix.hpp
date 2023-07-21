@@ -5,9 +5,6 @@
 #include <vector>
 #include <algorithm>
 
-#include "stb_image.h"
-#include "stb_image_write.h"
-
 struct Shape {
     size_t height {};
     size_t width {};
@@ -33,9 +30,9 @@ public:
     Matrix() = default;
     Matrix(size_t height, size_t width, size_t channels, scalar_t val = 0);
     Matrix(const Matrix<scalar_t>& b);
+    Matrix(size_t height, size_t width, size_t channels, std::vector<scalar_t>&& data);
+
     ~Matrix() = default;
-    // TODO:
-    // move [constructor/assigment]
 
     auto operator=(const Matrix<scalar_t>& b) -> Matrix<scalar_t>&;
     auto copy() const -> Matrix<scalar_t>;
@@ -45,6 +42,7 @@ public:
     auto height() const -> size_t;
     auto width() const -> size_t;
     auto channels() const -> size_t;
+    bool empty() {return data_.empty();}
 
     auto operator()(size_t row, size_t col, size_t channel = 0) -> scalar_t&;
     auto operator()(size_t row, size_t col, size_t channel = 0) const -> const scalar_t&;
@@ -71,6 +69,17 @@ template <class scalar_t>
 Matrix<scalar_t>::Matrix(const Matrix<scalar_t>& b) 
     : data_ {b.data_}
     , shape_ {b.shape()}
+{ }
+
+template <class scalar_t>
+Matrix<scalar_t>::Matrix(
+        size_t height, 
+        size_t width, 
+        size_t channels, 
+        std::vector<scalar_t>&& data)
+    : data_(std::move(data))
+    , shape_{height, width, channels}
+    
 { }
 
 template <class scalar_t>
