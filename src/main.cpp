@@ -38,94 +38,39 @@ void print_partition(std::vector<int>& partition, int height, int width) {
     std::cout << '\n';
 }
 
-void write_two_rectangles_image(int h, int w) {
-    Matrix<unsigned char> m(h, w, 1, 0);
-    auto rw = m.width();
-    auto rh = m.height() / 2;
-    auto* m_pt = m.pt();
-    float val = 255;
-    for (int i = 0; i != rh; ++i) {
-        for (int j = 0; j != rw; ++j) {
-            m(i, j) = val;        
-        }
-    }
- 
-    imwrite("two_rectangles.png", m);
-}
-
-void write_line_image(int h, int w) {
-    Matrix<unsigned char> m(h, w, 1, 0);
-    auto m_size = m.size();
-    auto m_width = m.width();
-    auto* m_pt = m.pt();
-    float val = 255;;
-
-    auto l = (h / 2) * w;
-    for (int i = 0; i != m_width; ++i) {
-        m_pt[l + i] = static_cast<unsigned char>(val);
-    }
- 
-    char filename[] = {"line.png"};
-    imwrite(filename, m);
-}
-
-void write_grad_image(int h, int w) {
-    Matrix<unsigned char> m(h, w, 1, 0);
-    auto m_size = m.size();
-    auto m_width = m.width();
-    auto* m_pt = m.pt();
-    float val = 255;
-    float step = val / m_size;
-    for (int i = 0; i != m_size; ++i) {
-        m_pt[i] = static_cast<unsigned char>(val);
-        val -= step;
-        if (val <= 0)
-            break;
-    }
- 
-    char filename[] = {"grad.png"};
-    imwrite(filename, m);
-}
-
-void write_scribbles_image(int h, int w, u_char fg, u_char bg, int boxlen = 6) {
-    Matrix<unsigned char> m(h, w, 1, 0); 
-    int size = m.size();
-
-    for (int i = 0; i != boxlen; ++i) {
-        for (int j = 0; j != boxlen; ++j) {
-            m(i, j) = fg;        
-        }
-    }
-    for (int i = h - 1; i > h - boxlen; --i) {
-        for (int j = w - 1; j > w - boxlen - 2; --j) {
-            m(i, j) = bg;
-        }
-    }
-    char filename[] = {"scribbles.png"};
-    imwrite(filename, m);
-}
-
 int main() {
-    auto img = imread("img_square_gray.png");
+    // 1. read image && convert it to gray
+    // 2. create resulting matrix all white
+    // 3. read scribbles, where scribbles:
+    // 3.1 have some white and non white scribbles
+    // all white scribbles will be used for sink terminals
+    // non white pixels will be used as source terminals
+    // after performing min-cut algorithm get all pixels reachable from source
+    // paint corresponding pixels with *non white* scribble color
+
+    auto img = imread("squares/img_gray.png");
+
+    /*
     std::cout << "image:";
     print_image(img);
     std::cout << '\n';
+    */
 
-    unsigned char bg = 73;
-    unsigned char fg = 254;
-
-    auto scribbles = imread("scribbles_square_gray.png");
+    auto scribbles = imread("squares/scribbles.png");
+    /*
     std::cout << "scribbles:"; 
     print_image(scribbles);
     std::cout << '\n';
+    */
 
     int width = img.width();
     int height = img.height();
+    auto size = img.size();
 
-    auto size = width * height;
-    EdmondsKarp<int> graph(width * width + 2);
+    EdmondsKarp<int> graph(size + 2);
     add_img_edges(graph, img);
-    add_scribble_edges(graph, scribbles, 73, 10000000);
+    add_scribble_edges(graph, scribbles, 10000000);
+
     std::cout << "max flow : " << graph.max_flow(size, size + 1);
     auto partition = graph.partition(size);
     print_partition(partition, height, width);

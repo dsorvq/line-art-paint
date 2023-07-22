@@ -11,7 +11,6 @@ EdmondsKarp<int> matrix_to_graph(const Matrix<unsigned char>& m);
 void add_scribble_edges(
         EdmondsKarp<int>& graph,
         const Matrix<unsigned char>& scribbles,
-        unsigned char s,
         int s_cap
 );
 

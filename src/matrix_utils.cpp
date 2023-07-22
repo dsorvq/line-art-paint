@@ -1,4 +1,4 @@
-#include <matrix_utils.hpp>
+#include "matrix_utils.hpp"
 
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -32,7 +32,9 @@ void add_img_edges(
 
 ) {
     assert(!img.empty());
+    assert(img.channels() == 1);
     assert(img.size() + 2 == graph.V());
+
     const auto size = img.size();
     const auto width = img.width();
 
@@ -54,10 +56,43 @@ void add_img_edges(
     }
 }
 
+// source -> non white scribbles
+// white scribbles -> sink
+// zero alpha scribbles are skipped
+void add_scribble_edges(
+        EdmondsKarp<int>& graph,
+        const Matrix<unsigned char>& scribbles,
+        int s_cap
+) { 
+    assert(!scribbles.empty());
+    assert(scribbles.channels() == 4);
+    assert(scribbles.size()/scribbles.channels() + 2 == graph.V());
+    
+    int source = graph.V()-2;
+    int sink = source + 1;
+
+    const auto size = scribbles.size();
+    auto* pt = scribbles.pt();
+
+    for (int i = 0; i < size; i += 4) {
+        if (pt[i+3] == 0) 
+            continue; 
+
+        if (pt[i] == 255 and pt[i+1] == 255 and pt[i+2] == 255) {
+            graph.add_directional_edge(i / 4, sink, s_cap);
+        }
+        else {
+            graph.add_directional_edge(source, i / 4, s_cap);
+        }
+    }
+}
+
+
 // Assumes that vertices graph.V & graph.V + 1 are source and sink
 // s := rgb value of pixel on scribbles that will be assigned to source
 // all other pixels *with non zero alpha* to sink 
-void add_scribble_edges(
+// TODO: DELETE IT
+void add_scribble_edges_old(
         EdmondsKarp<int>& graph,
         const Matrix<unsigned char>& scribbles,
         unsigned char s,
@@ -81,15 +116,3 @@ void add_scribble_edges(
     }
 }
 
-// TODO:
-// for more then 2 sources after that we interested only on
-// sink pixels
-// color image pixels  with color 
-/*
-Matrix<unsigned char> color_from_segment(
-        EdmondsKarp<int>& graph,
-        Matrix<unsigned char>& m,
-        unsigned char color
-) {
-} 
-*/
