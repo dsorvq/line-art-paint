@@ -15,6 +15,7 @@ add_executable(
     src/main.cpp 
     src/stb.cpp
     src/matrix_utils.cpp
+    src/graph_utils.cpp
 )
 
 # tests

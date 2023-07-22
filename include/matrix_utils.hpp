@@ -1,22 +1,9 @@
 #pragma once
 
 #include "matrix.hpp"
-#include "edmonds_karp.hpp"
 
-bool imwrite(const char* filename, Matrix<unsigned char>& m);
-Matrix<unsigned char> imread(const char* filename);
+auto imwrite(const char* filename, Matrix<unsigned char>& m) -> bool;
+auto imread(const char* filename) -> Matrix<unsigned char>;
 
-EdmondsKarp<int> matrix_to_graph(const Matrix<unsigned char>& m);
-
-void add_scribble_edges(
-        EdmondsKarp<int>& graph,
-        const Matrix<unsigned char>& scribbles,
-        int s_cap
-);
-
-void add_img_edges(
-        EdmondsKarp<int>& graph,
-        const Matrix<unsigned char>& img
-);
-
+auto to_gray(const Matrix<unsigned char>& m) -> Matrix<unsigned char>;
 

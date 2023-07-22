@@ -3,11 +3,34 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
-Matrix<unsigned char> imread(const char* filename) {
+enum ImageType {
+    NOT_IMG, PNG, BMP, TGA, JPG 
+};
+
+ImageType get_image_type(const std::string_view filename) {
+    const auto dot = filename.rfind('.');
+    if (dot == std::string::npos) 
+        return NOT_IMG;
+
+    std::string_view extension = filename.substr(dot);
+    if (extension == ".png")
+        return PNG;
+    if (extension == ".bmp")
+        return BMP;
+    if (extension == "TGA")
+        return TGA;
+    if (extension == "jpg")
+        return JPG;
+
+    return NOT_IMG;
+}
+
+auto imread(const char* filename) -> Matrix<unsigned char> {
     int w, h, c;
     unsigned char *data = stbi_load(filename, &w, &h, &c, 0);
     if (!data) {
         std::cerr << "Image was not loaded\n" << std::endl;
+        return {};
     }
 
     Matrix<unsigned char> m(h, w, c);
@@ -21,98 +44,52 @@ Matrix<unsigned char> imread(const char* filename) {
     return m;
 }
 
-// TODO: output format
-bool imwrite(const char* filename, Matrix<unsigned char>& m) {
-    return stbi_write_png(filename, int(m.width()), int(m.height()), int(m.channels()), m.pt(), int(m.width()));
-}
+auto imwrite(const std::string& filename, Matrix<unsigned char>& m) -> bool {
+    auto type = get_image_type(filename);
+    if (type == NOT_IMG)
+        return false;
 
-void add_img_edges(
-        EdmondsKarp<int>& graph,
-        const Matrix<unsigned char>& img
+    int success = 0;
 
-) {
-    assert(!img.empty());
-    assert(img.channels() == 1);
-    assert(img.size() + 2 == graph.V());
-
-    const auto size = img.size();
-    const auto width = img.width();
-
-    unsigned char zero_cancel = 1;
-    auto* pt = img.pt();
-    for (int i = 0; i != size; ++i) {
-        if (i % width) {
-            unsigned char new_val = std::min(pt[i], pt[i-1]);
-            graph.add_bidirectional_edge(
-                    i, i-1, 
-                    std::max(zero_cancel, new_val));
-        }
-        if (i >= width) {
-            unsigned char new_val = std::min(pt[i], pt[i-width]);
-            graph.add_bidirectional_edge(
-                    i, i-width, 
-                    std::max(zero_cancel, new_val));
-        }        
+    if (type == PNG) {
+        success = stbi_write_png(filename.data(), m.width(), m.height(), m.channels(), m.pt(), m.width()*m.channels());
+    } 
+    else if (type == BMP) {
+        success = stbi_write_bmp(filename.data(), m.width(), m.height(), m.channels(), m.pt());
     }
+    else if (type == TGA) {
+        success = stbi_write_tga(filename.data(), m.width(), m.height(), m.channels(), m.pt());
+    }
+    else if (type == JPG) {
+        success = stbi_write_jpg(filename.data(), m.width(), m.height(), m.channels(), m.pt(), 100);
+    }
+
+    if (!success)
+        return false;
+    return true;
 }
 
-// source -> non white scribbles
-// white scribbles -> sink
-// zero alpha scribbles are skipped
-void add_scribble_edges(
-        EdmondsKarp<int>& graph,
-        const Matrix<unsigned char>& scribbles,
-        int s_cap
-) { 
-    assert(!scribbles.empty());
-    assert(scribbles.channels() == 4);
-    assert(scribbles.size()/scribbles.channels() + 2 == graph.V());
+auto to_gray(const Matrix<unsigned char>& m) -> Matrix<unsigned char> {
+    if (m.channels() == 1) {
+        return m;
+    }
+    if (m.channels() != 3) {
+        // TODO: 
+        std::cerr << "matrux must have 3 channels to be converted to gray";
+        return m;
+    }
     
-    int source = graph.V()-2;
-    int sink = source + 1;
+    Matrix <unsigned char> gray(m.height(), m.width(), 1);
 
-    const auto size = scribbles.size();
-    auto* pt = scribbles.pt();
-
-    for (int i = 0; i < size; i += 4) {
-        if (pt[i+3] == 0) 
-            continue; 
-
-        if (pt[i] == 255 and pt[i+1] == 255 and pt[i+2] == 255) {
-            graph.add_directional_edge(i / 4, sink, s_cap);
-        }
-        else {
-            graph.add_directional_edge(source, i / 4, s_cap);
-        }
+    // 3 channels version
+    auto p_orig = m.pt();
+    auto p_gray = gray.pt();
+    auto size = m.size();
+    for (int i = 0, j = 0; i < size; ++j, i += 3) {
+        auto gray_value = p_orig[i]*0.2126 + p_orig[i+1]*0.7152 + p_orig[i+2]*0.0722 + 0.3;  
+        p_gray[j] = (gray_value < 0.0f) ? 0 : ((gray_value > 255.0f) ? 255 : (unsigned char)gray_value);
     }
-}
 
-
-// Assumes that vertices graph.V & graph.V + 1 are source and sink
-// s := rgb value of pixel on scribbles that will be assigned to source
-// all other pixels *with non zero alpha* to sink 
-// TODO: DELETE IT
-void add_scribble_edges_old(
-        EdmondsKarp<int>& graph,
-        const Matrix<unsigned char>& scribbles,
-        unsigned char s,
-        int s_cap
-) { 
-    assert(!scribbles.empty());
-    assert(scribbles.size() + 2 == graph.V());
-    
-    const auto size = scribbles.size();
-    int source = size;
-    int sink = size + 1;
-
-    auto* pt = scribbles.pt();
-    for (int i = 0; i != size; ++i) {
-        if (pt[i] == s) {
-            graph.add_directional_edge(source, i, s_cap);
-        }
-        else if (pt[i]) {
-            graph.add_directional_edge(i, sink, s_cap);
-        }
-    }
+    return gray;
 }
 

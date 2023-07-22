@@ -2,8 +2,7 @@
 
 #include "matrix.hpp"
 #include "matrix_utils.hpp"
-// #include "graph.hpp"
-// #include "graph_utils.hpp"
+#include "graph_utils.hpp"
 
 template <class scalar_t>
 void print_image(Matrix<scalar_t>& m) {
@@ -39,36 +38,30 @@ void print_partition(std::vector<int>& partition, int height, int width) {
 }
 
 int main() {
-    // 1. read image && convert it to gray
-    // 2. create resulting matrix all white
-    // 3. read scribbles, where scribbles:
-    // 3.1 have some white and non white scribbles
-    // all white scribbles will be used for sink terminals
-    // non white pixels will be used as source terminals
-    // after performing min-cut algorithm get all pixels reachable from source
-    // paint corresponding pixels with *non white* scribble color
-
-    auto img = imread("squares/img_gray.png");
+    auto img = imread("squares/img.png");
+    auto gray = to_gray(img);
 
     /*
-    std::cout << "image:";
-    print_image(img);
+    std::cout 
+        << "\nchannels : " << gray.channels()
+        << "  height : " << gray.height()  
+        << "  width : " << gray.width();
+
     std::cout << '\n';
+    std::cout << "image gray:";
+    print_image(gray);
+    std::cout << '\n';
+    return 0;  
     */
 
     auto scribbles = imread("squares/scribbles.png");
-    /*
-    std::cout << "scribbles:"; 
-    print_image(scribbles);
-    std::cout << '\n';
-    */
 
-    int width = img.width();
-    int height = img.height();
-    auto size = img.size();
+    int width = gray.width();
+    int height = gray.height();
+    auto size = gray.size();
 
     EdmondsKarp<int> graph(size + 2);
-    add_img_edges(graph, img);
+    add_img_edges(graph, gray);
     add_scribble_edges(graph, scribbles, 10000000);
 
     std::cout << "max flow : " << graph.max_flow(size, size + 1);
