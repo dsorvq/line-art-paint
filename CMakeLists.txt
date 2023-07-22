@@ -14,6 +14,7 @@ add_executable(
     ${CMAKE_PROJECT_NAME}
     src/main.cpp 
     src/stb.cpp
+    src/matrix_utils.cpp
 )
 
 # tests
@@ -21,7 +22,7 @@ add_subdirectory(googletest)
 
 add_executable(
     ${CMAKE_PROJECT_NAME}_test
-    test/test_main.cpp
+    test/matrix_test.cpp
     src/stb.cpp
 )
 

@@ -42,12 +42,17 @@ public:
     auto height() const -> size_t;
     auto width() const -> size_t;
     auto channels() const -> size_t;
-    bool empty() {return data_.empty();}
+    bool empty() const {return data_.empty();}
 
     auto operator()(size_t row, size_t col, size_t channel = 0) -> scalar_t&;
     auto operator()(size_t row, size_t col, size_t channel = 0) const -> const scalar_t&;
     auto pt() -> scalar_t*;
     auto pt() const -> const scalar_t*;
+
+    auto get3(size_t row, size_t col) const -> std::array<scalar_t, 3>;
+    auto get4(size_t row, size_t col) const -> std::array<scalar_t, 3>;
+    void set3(size_t row, size_t col, const std::array<scalar_t, 3>& val);
+    void set4(size_t row, size_t col, const std::array<scalar_t, 4>& val);
 
     auto operator==(const Matrix<scalar_t>& b) const -> bool;
 
@@ -137,6 +142,39 @@ auto Matrix<scalar_t>::pt() -> scalar_t* {
 template <class scalar_t>
 auto Matrix<scalar_t>::pt() const -> const scalar_t* {
     return data_.data();
+}
+
+template <class scalar_t>
+auto Matrix<scalar_t>::get3(size_t row, size_t col) const -> std::array<scalar_t, 3> {
+    auto* p = pt(); 
+    auto pos = row*shape_.width*shape_.channels + col*shape_.channels;
+    return {p[pos], p[pos+1], p[pos+2]};
+}
+
+template <class scalar_t>
+auto Matrix<scalar_t>::get4(size_t row, size_t col) const -> std::array<scalar_t, 3> {
+    auto* p = pt(); 
+    auto pos = row*shape_.width*shape_.channels + col*shape_.channels;
+    return {p[pos], p[pos+1], p[pos+2], p[pos+3]};
+}
+
+template <class scalar_t>
+void Matrix<scalar_t>::set3(size_t row, size_t col, const std::array<scalar_t, 3>& val) {
+    auto* p = pt(); 
+    auto pos = row*shape_.width*shape_.channels + col*shape_.channels;
+    p[pos] = val[0];
+    p[pos+1] = val[1];
+    p[pos+2] = val[2];
+}
+
+template <class scalar_t>
+void Matrix<scalar_t>::set4(size_t row, size_t col, const std::array<scalar_t, 4>& val) {
+    auto* p = pt(); 
+    auto pos = row*shape_.width*shape_.channels + col*shape_.channels;
+    p[pos] = val[0];
+    p[pos+1] = val[1];
+    p[pos+2] = val[2];
+    p[pos+3] = val[3];
 }
 
 template <class scalar_t>

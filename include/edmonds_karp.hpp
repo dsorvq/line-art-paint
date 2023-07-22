@@ -23,6 +23,8 @@ public:
     // reachable=1 unreachable=0
     auto partition(int source) -> std::vector<int>;
 
+    int V() const {return V_;}
+
 private:
     auto bfs(int source, int sink) -> flow_t;
 
@@ -114,27 +116,17 @@ template <class flow_t>
 auto EdmondsKarp<flow_t>::partition(int source) -> std::vector<int> {
     assert(flow_called_);
 
-    std::vector<int> partition(V_, 3); // 3 = not yet processed 
-    partition[source] = 1;
-
-    std::stack<int> st;
-    st.push(source);
-    while (!st.empty()) {
-        auto cur = st.top();
-        st.pop();
-        for (auto child : adj_[cur]) {
-            if (partition[child] != 3)
-                continue;
-            if (capacity_[cur][child]) {
-                st.push(child);
-                partition[child] = 1;
-            }
-            else {
-                partition[child] = 0;
-            }
+    bfs(source, -3);
+    std::vector<int> partition(V_);
+    for (int i = 0; i != V_; ++i) {
+        if (parent_[i] == unvisited) {
+            partition[i] = 0;
+        }
+        else {
+            partition[i] = 255;
         }
     }
-    
+
     return partition;
 }
 template <class flow_t>

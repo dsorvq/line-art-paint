@@ -9,10 +9,6 @@ protected:
 
 };
 
-TEST (TestingTesT, Testfortest) {
-    EXPECT_TRUE(false);
-}
-
 // Test the Matrix constructor with default value initialization
 TEST_F(MatrixTest, DefaultConstructor) {
     Matrix<int> matrix;
