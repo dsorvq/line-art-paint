@@ -1,5 +1,7 @@
 #include "matrix_utils.hpp"
 
+#include <cmath>
+
 #include "stb_image.h"
 #include "stb_image_write.h"
 
@@ -93,3 +95,27 @@ auto to_gray(const Matrix<unsigned char>& m) -> Matrix<unsigned char> {
     return gray;
 }
 
+auto to_gray_gamma(const Matrix<unsigned char>& m, float gamma) -> Matrix<unsigned char> {
+    if (m.channels() == 1) {
+        return m;
+    }
+    if (m.channels() != 3) {
+        std::cerr << "matrix must have 3 channels to be converted to gray";
+        return m;
+    }
+
+    Matrix<unsigned char> gray(m.height(), m.width(), 1);
+
+    // 3 channels version
+    auto p_orig = m.pt();
+    auto p_gray = gray.pt();
+    auto size = m.size();
+    for (int i = 0, j = 0; i < size; ++j, i += 3) {
+        auto gray_value = (p_orig[i]*0.2126 + p_orig[i+1]*0.7152 + p_orig[i+2]*0.0722 + 0.3) / 255.0;
+        auto gray_value_corrected = std::pow(gray_value, 1/gamma);
+        auto gray_value_scaled = static_cast<unsigned char>(gray_value_corrected * 255.0);
+        p_gray[j] = gray_value_scaled;
+    }
+
+    return gray;
+}
