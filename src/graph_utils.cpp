@@ -1,7 +1,8 @@
 #include "graph_utils.hpp"
 
 void add_img_edges(
-        EdmondsKarp<int>& graph,
+        //EdmondsKarp<int>& graph,
+        Dinic<int>& graph,
         const Matrix<unsigned char>& img
 
 ) {
@@ -34,7 +35,8 @@ void add_img_edges(
 // white scribbles -> sink
 // zero alpha scribbles are skipped
 void add_scribble_edges(
-        EdmondsKarp<int>& graph,
+        //EdmondsKarp<int>& graph,
+        Dinic<int>& graph,
         const Matrix<unsigned char>& scribbles,
         int s_cap
 ) { 
