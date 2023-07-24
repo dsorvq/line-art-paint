@@ -9,8 +9,13 @@ struct Shape {
     size_t height {};
     size_t width {};
     size_t channels {};
+    size_t size {};
 
     Shape() = default;
+    
+    void update_size() {
+        size = height * width * channels;
+    }
 
     auto operator==(const Shape& b) const -> bool {
         return height == b.height and width == b.width and channels == b.channels;
@@ -20,6 +25,7 @@ struct Shape {
         height = b.height;
         width = b.width;
         channels = b.channels;
+        size = b.size;
         return *this;
     }
 };
@@ -36,6 +42,9 @@ public:
 
     auto operator=(const Matrix<scalar_t>& b) -> Matrix<scalar_t>&;
     auto copy() const -> Matrix<scalar_t>;
+
+    void reset(size_t height, size_t width, size_t channels, scalar_t val = 0);
+    void reset(Shape new_shape, scalar_t val = 0);
 
     auto shape() const -> Shape;
     auto size() const -> size_t;
@@ -67,6 +76,7 @@ template <class scalar_t>
 Matrix<scalar_t>::Matrix(size_t height, size_t width, size_t channels, scalar_t val) 
     : shape_{height, width, channels}
 {
+    shape_.update_size();
     data_.assign(size(), val);
 }
 
@@ -100,13 +110,25 @@ auto Matrix<scalar_t>::copy() const -> Matrix<scalar_t> {
 }
 
 template <class scalar_t>
+void Matrix<scalar_t>::reset(size_t height, size_t width, size_t channels, scalar_t val) {
+    auto new_size = height * width * channels;
+    data_.assign(new_size, val);
+    shape_ = {height, width, channels, new_size};
+}
+template <class scalar_t>
+void Matrix<scalar_t>::reset(Shape new_shape, scalar_t val) {
+    data_.assign(new_shape.size, val);
+    shape_ = new_shape;
+}
+
+template <class scalar_t>
 auto Matrix<scalar_t>::shape() const -> Shape {
     return shape_;    
 }
 
 template <class scalar_t>
 auto Matrix<scalar_t>::size() const -> size_t {
-    return shape_.height * shape_.width * shape_.channels;    
+    return shape_.size;
 }
 
 template <class scalar_t>
