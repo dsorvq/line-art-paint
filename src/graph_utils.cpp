@@ -1,7 +1,6 @@
 #include "graph_utils.hpp"
 
 void add_img_edges(
-        //EdmondsKarp<int>& graph,
         Dinic<int>& graph,
         const Matrix<unsigned char>& img
 
@@ -35,7 +34,6 @@ void add_img_edges(
 // source -> pixels with color == s_color
 // all other pixels -> sink
 void add_scribble_edges(
-        //EdmondsKarp<int>& graph,
         Dinic<int>& graph,
         const Matrix<unsigned char>& scribbles,
         int s_cap,
@@ -56,6 +54,39 @@ void add_scribble_edges(
             continue; 
         
         if (pt[i] == s_color[0] and pt[i+1] == s_color[1] and pt[i+2] == s_color[2]) {
+            graph.add_directional_edge(source, i / 4, s_cap);
+        }
+        else {
+            graph.add_directional_edge(i / 4, sink, s_cap);
+        }
+    }
+}
+
+
+// zero alpha scribbles are skipped
+// source -> non zero alpha scribble with location in `source_locations` 
+// all other pixels -> sink
+void add_scribble_edges(
+        Dinic<int>& graph,
+        const Matrix<unsigned char>& scribbles,
+        std::unordered_set<int>& source_locations,
+        int s_cap
+) { 
+    assert(!scribbles.empty());
+    assert(scribbles.channels() == 4);
+    assert(scribbles.size()/scribbles.channels() + 2 == graph.V());
+    
+    int source = graph.V()-2;
+    int sink = source + 1;
+
+    const auto size = scribbles.size();
+    auto* pt = scribbles.pt();
+
+    for (int i = 0; i < size; i += 4) {
+        if (pt[i+3] == 0) 
+            continue; 
+        
+        if (source_locations.find(i) != source_locations.end()) {
             graph.add_directional_edge(source, i / 4, s_cap);
         }
         else {

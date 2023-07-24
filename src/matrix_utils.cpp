@@ -1,6 +1,7 @@
 #include "matrix_utils.hpp"
 
 #include <cmath>
+#include <array>
 
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -118,4 +119,31 @@ auto to_gray_gamma(const Matrix<unsigned char>& m, float gamma) -> Matrix<unsign
     }
 
     return gray;
+}
+
+void blend_color(
+        Matrix<unsigned char>& img,
+        std::array<u_char, 3> color,
+        std::vector<bool>& mask
+) {
+    blend_color(
+            img, 
+            std::array<float, 3>{color[0]/255.f, color[1]/255.f, color[2]/255.f},
+            mask
+    );
+}
+void blend_color(
+        Matrix<unsigned char>& img,
+        std::array<float, 3> color,
+        std::vector<bool>& mask
+) {
+    auto* p = img.pt();
+    auto size = img.size();
+    for (int i = 0; i < size; i += 3) {
+        if (!mask[i/3])
+            continue;
+        p[i] *= color[0]; 
+        p[i+1] *= color[1]; 
+        p[i+2] *= color[2]; 
+    }
 }

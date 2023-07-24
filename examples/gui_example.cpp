@@ -1,5 +1,6 @@
 #include <iostream>
 #include <array>
+#include <unordered_set>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -7,14 +8,9 @@
 #include <backends/imgui_impl_opengl3.h>
 
 #include "matrix.hpp"
+#include "dinic.hpp"
+#include "graph_utils.hpp"
 #include "matrix_utils.hpp"
-
-// Global variables
-/*
-GLFWwindow* window;
-unsigned int drawing_id;
-Matrix<unsigned char> drawing;
-*/
 
 class Painter {
 public:
@@ -23,13 +19,38 @@ public:
     void init(const char* filename) {
         drawing_ = imread(filename); // double copy
         scribbles_.reset(drawing_.height(), drawing_.width(), 4, 0);
+        gray_ = to_gray_gamma(drawing_, 1/2.0); 
 
         scribbles_make_border();
         
-        update_drawing();
-        update_scribbles();
+        update_drawing_texture();
+        update_scribbles_texture();
     }
     ~Painter() = default;
+
+    void solve() {
+        Dinic<int> graph(gray_.size() + 2);
+        std::cout << "graph created\n"; 
+        // 23 works best so far
+        constexpr int terminal_capacity = 23;
+
+        add_img_edges(graph, gray_);
+        add_scribble_edges(
+                graph, 
+                scribbles_, 
+                new_scribbles_, 
+                terminal_capacity
+        );
+        std::cout << "all scribbles addded\n"; 
+
+        auto flow = graph.max_flow(gray_.size(), gray_.size() + 1);
+        std::cout << "flow = \n" << flow << '\n'; 
+
+        auto partition = graph.partition(gray_.size());
+        blend_color(drawing_, last_color_drawn_, partition);
+        new_scribbles_.clear();
+        update_drawing_texture();
+    }
 
     auto drawing_id() -> unsigned int {
         return drawing_id_; 
@@ -42,16 +63,18 @@ public:
     auto height() {return drawing_.height();}
     auto drawing_pt() {return drawing_.pt();}
 
-    void draw_circle(int x, int y, int diameter, std::array<int, 3> color) {
+    void draw_circle(int x, int y, int diameter, std::array<u_char, 3> color) {
         int radius = diameter / 2;
-      
-        auto w = scribbles_.width();
-        auto h = scribbles_.height();
+        
+        int w = scribbles_.width();
+        int h = scribbles_.height();
         auto* pt = scribbles_.pt();
-        for (int i = x - radius; i <= x + radius; ++i) {
-            for (int j = y - radius; j <= y + radius; ++j) {
+        for (int i = std::max(x - radius, 0); i <= std::min(x + radius, w - 1); ++i) {
+            for (int j = std::max(y - radius, 0); j <= std::min(y + radius, h - 1); ++j) {
                 if ((i - x)*(i - x) + (j - y)*(j - y) <= radius*radius) {
                     int index = (j * w + i) * 4;
+                   
+                    new_scribbles_.insert(index);
 
                     pt[index] = color[0];
                     pt[index + 1] = color[1];
@@ -60,12 +83,13 @@ public:
                 }
             }
         }
+        last_color_drawn_ = color;
     }
 
-    void update_scribbles() {
+    void update_scribbles_texture() {
         update_texture(scribbles_, scribbles_id_);
     }
-    void update_drawing() {
+    void update_drawing_texture() {
         update_texture(drawing_, drawing_id_);
     }
 
@@ -99,8 +123,11 @@ private:
 private:
     Matrix<unsigned char> drawing_;
     Matrix<unsigned char> scribbles_;
+    Matrix<unsigned char> gray_;
     unsigned int drawing_id_;
     unsigned int scribbles_id_;
+    std::unordered_set<int> new_scribbles_;
+    std::array<u_char, 3> last_color_drawn_{};
 };
 
 class GUI {
@@ -148,17 +175,19 @@ public:
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowPos({float(painter_.width()+5), 0});
         ImGui::Begin("Tools", NULL, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration);
-        float col;
-        ImGui::ColorPicker3("color picker", &col);
+        static float col[3] = {255, 0, 0};
+        ImGui::ColorPicker3("color picker", col);
         static bool show_scribbles = true;
         ImGui::Checkbox("Show scribbles", &show_scribbles);
         ImGui::End();
 
-        ImGui::ShowDemoWindow();
+        //ImGui::ShowDemoWindow();
 
-        ImGui::Begin("Image", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse);
+        ImGui::SetNextWindowPos({0, 0});
+        ImGui::SetNextWindowSize({0, 0});
+        ImGui::Begin("Image", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse);
         ImGui::Image((void*)(intptr_t)painter_.drawing_id(), ImVec2(painter_.width(), painter_.height()));
 
         ImVec2 mousePos = ImGui::GetMousePos();
@@ -169,18 +198,25 @@ public:
         if (rmpos.x >= 0 && rmpos.y >= 0 &&
             rmpos.x < painter_.width() && rmpos.y < painter_.height()) 
         {
-            /*
             if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                painter_.draw_circle(rmpos.x, rmpos.y, 16, {255, 0, 0});
-                painter_.update_scribbles();
-            } */
-            std::cout << "x:" << rmpos.x << " y:" << rmpos.y << '\n'; 
+                painter_.draw_circle(rmpos.x, rmpos.y, 16, 
+                        {u_char(col[0] * 255), u_char(col[1] * 255), u_char(col[2] * 255)});
+                painter_.update_scribbles_texture();
+            }
+            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                painter_.solve();
+            }
+            //std::cout << "x:" << rmpos.x << " y:" << rmpos.y << '\n'; 
         }
         ImGui::End();
 
-        ImGui::Begin("Scribbles", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse);
-        ImGui::Image((void*)(intptr_t)painter_.scribbles_id(), ImVec2(painter_.width(), painter_.height()));
-        ImGui::End();
+        if (show_scribbles) {
+            ImGui::SetNextWindowPos({0, 0});
+            ImGui::SetNextWindowSize({0, 0});
+            ImGui::Begin("Scribbles", NULL, ImGuiWindowFlags_NoMove |  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse);
+            ImGui::Image((void*)(intptr_t)painter_.scribbles_id(), ImVec2(painter_.width(), painter_.height()));
+            ImGui::End();
+        }
 
         // Rendering
         ImGui::Render();
@@ -213,96 +249,7 @@ private:
     bool is_ready_ {};
 };
 
-/*
-void ImGuiInit() {
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    (void)io;
-
-    ImGui::StyleColorsDark();
-
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 410");
-}
-
-void render_frame() {
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    ImGui::SetNextWindowPos({0, 0});
-    ImGui::Begin("Tools", NULL, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration);
-    float col;
-    ImGui::ColorPicker3("color picker", &col);
-    static bool show_scribbles = true;
-    ImGui::Checkbox("Show scribbles", &show_scribbles);
-    ImGui::End();
-
-    ImGui::Begin("Image", NULL, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse);
-    ImGui::Image((void*)(intptr_t)drawing_id, ImVec2(drawing.width(), drawing.height()));
-
-    ImVec2 mousePos = ImGui::GetMousePos();
-    ImVec2 imagePos = ImGui::GetItemRectMin(); // Top-left corner of the image within the ImGui window
-    ImVec2 rmpos = ImVec2(mousePos.x - imagePos.x, mousePos.y - imagePos.y);
-
-    // Check if the cursor is within the bounds of the image
-    if (rmpos.x >= 0 && rmpos.y >= 0 &&
-        rmpos.x < drawing.width() && rmpos.y < drawing.height()) 
-    {
-        std::cout << "x:" << rmpos.x << " y:" << rmpos.y << '\n'; 
-    }
-    ImGui::End();
-
-    // Rendering
-    ImGui::Render();
-    int display_w, display_h;
-    glfwGetFramebufferSize(window, &display_w, &display_h);
-    glViewport(0, 0, display_w, display_h);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    // Swap buffers
-    glfwSwapBuffers(window);
-}
-*/
-
 int main(int argc, char* argv[]) {
-    /*
-    if (!glfwInit()) {
-        return -1;
-    }
-    window = glfwCreateWindow(800, 600, "Image Display", NULL, NULL);
-    if (!window) {
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
-
-    drawing = imread(argv[1]);
-    // Generate OpenGL texture for the drawing
-    glGenTextures(1, &drawing_id);
-    glBindTexture(GL_TEXTURE_2D, drawing_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, drawing.width(), drawing.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, drawing.pt());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    ImGuiInit();
-
-    // Main loop
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-        render_frame();
-    }
-
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    glfwDestroyWindow(window);
-    glfwTerminate();
-    */
     GUI gui{argv[1]};
     gui.run();   
 
