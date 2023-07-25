@@ -19,6 +19,7 @@ add_executable(
     src/stb.cpp
     src/matrix_utils.cpp
     src/graph_utils.cpp
+    src/painter.cpp
 )
 
 # tests
@@ -38,7 +39,7 @@ if(BUILD_TESTS)
 endif()
 
 # examples
-option(BUILD_EXAMPLES "Build examples" YES)
+option(BUILD_EXAMPLES "Build examples" OFF)
 if(BUILD_EXAMPLES)
     add_subdirectory(ext/imgui)
     add_subdirectory(ext/glfw)
