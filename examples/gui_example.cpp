@@ -11,45 +11,41 @@
 #include "dinic.hpp"
 #include "graph_utils.hpp"
 #include "matrix_utils.hpp"
+#include "painter.hpp"
 
-class Painter {
+class PainterHandler : public Painter {
 public:
-    Painter() { }
+    PainterHandler() = delete;
+    PainterHandler(const char* filename) : Painter(filename) {
+        width_ = drawing().width();
+        height_ = drawing().height();
 
-    void init(const char* filename) {
-        drawing_ = imread(filename); // double copy
-        scribbles_.reset(drawing_.height(), drawing_.width(), 4, 0);
-        gray_ = to_gray_gamma(drawing_, 1/2.0); 
+        scribbles_.reset(height_, width_, 4, 0);
 
-        scribbles_make_border();
-        
-        update_drawing_texture();
-        update_scribbles_texture();
+        scribbles_make_border();   
     }
-    ~Painter() = default;
 
     void solve() {
-        Dinic<int> graph(gray_.size() + 2);
-        std::cout << "graph created\n"; 
-        // 23 works best so far
-        constexpr int terminal_capacity = 23;
-
-        add_img_edges(graph, gray_);
-        add_scribble_edges(
-                graph, 
-                scribbles_, 
-                new_scribbles_, 
-                terminal_capacity
-        );
-        std::cout << "all scribbles addded\n"; 
-
-        auto flow = graph.max_flow(gray_.size(), gray_.size() + 1);
-        std::cout << "flow = \n" << flow << '\n'; 
-
-        auto partition = graph.partition(gray_.size());
-        blend_color(drawing_, last_color_drawn_, partition);
-        new_scribbles_.clear();
+        paint(scribbles_);
         update_drawing_texture();
+    }
+
+    void save_image() {
+        imwrite("result.png");
+    }
+
+    void update_scribbles_texture() {
+        update_texture(scribbles_, scribbles_id_);
+    }
+    void update_drawing_texture() {
+        update_texture(drawing(), drawing_id_);
+    }
+
+    auto width() -> int {
+        return width_;
+    }
+    auto height() -> int {
+        return height_;
     }
 
     auto drawing_id() -> unsigned int {
@@ -58,10 +54,6 @@ public:
     auto scribbles_id() -> unsigned int {
         return scribbles_id_; 
     }
-
-    auto width() {return drawing_.width();}
-    auto height() {return drawing_.height();}
-    auto drawing_pt() {return drawing_.pt();}
 
     void draw_circle(int x, int y, int diameter, std::array<u_char, 3> color) {
         int radius = diameter / 2;
@@ -74,8 +66,6 @@ public:
                 if ((i - x)*(i - x) + (j - y)*(j - y) <= radius*radius) {
                     int index = (j * w + i) * 4;
                    
-                    new_scribbles_.insert(index);
-
                     pt[index] = color[0];
                     pt[index + 1] = color[1];
                     pt[index + 2] = color[2];
@@ -83,28 +73,19 @@ public:
                 }
             }
         }
-        last_color_drawn_ = color;
-    }
-
-    void update_scribbles_texture() {
-        update_texture(scribbles_, scribbles_id_);
-    }
-    void update_drawing_texture() {
-        update_texture(drawing_, drawing_id_);
     }
 
 private:
-    void update_texture(Matrix<unsigned char>& m, unsigned int& texture_id) {
+    void update_texture(const Matrix<unsigned char>& m, unsigned int& texture_id) {
         glGenTextures(1, &texture_id);
         glBindTexture(GL_TEXTURE_2D, texture_id);
-        if (m.channels() == 3) {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m.width(), m.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, m.pt());
-        }
-        else {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m.width(), m.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, m.pt());
-        }
+
+        GLenum format = (m.channels() == 3) ? GL_RGB : GL_RGBA;
+        
+        glTexImage2D(GL_TEXTURE_2D, 0, format, m.width(), m.height(), 0, format, GL_UNSIGNED_BYTE, m.pt());
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
     }
 
     void scribbles_make_border() {
@@ -121,24 +102,25 @@ private:
     }
 
 private:
-    Matrix<unsigned char> drawing_;
-    Matrix<unsigned char> scribbles_;
-    Matrix<unsigned char> gray_;
+    int width_{};
+    int height_{};
     unsigned int drawing_id_;
+
     unsigned int scribbles_id_;
-    std::unordered_set<int> new_scribbles_;
-    std::array<u_char, 3> last_color_drawn_{};
+    Matrix<unsigned char> scribbles_;
 };
 
 class GUI {
 public:
     GUI() = delete;
-    GUI(const char* filename) {
+    GUI(const char* filename) 
+        : painter_(filename) 
+    {
         if (!glfwInit()) {
             std::cerr << "glfw wasn't initialized\n";
             return;
         }
-        window_ = glfwCreateWindow(800, 600, "Image Display", NULL, NULL);
+        window_ = glfwCreateWindow(1200, 1200, "Image Display", NULL, NULL);
         if (!window_) {
             glfwTerminate();
             std::cerr << "glfw window initialized\n";
@@ -146,9 +128,8 @@ public:
         }
         glfwMakeContextCurrent(window_);
         ImGui_init();
-
-        painter_.init(filename);
-        is_ready_ = true;
+        painter_.update_drawing_texture();
+        painter_.update_scribbles_texture();
     }
 
     ~GUI() {
@@ -160,14 +141,11 @@ public:
     }
 
     bool run() {
-        if (!is_ready_)
-            return false;
-
         while (!glfwWindowShouldClose(window_)) {
             glfwPollEvents();
             render_frame();
         }
-        return is_ready_;
+        return true;
     }
 
     void render_frame() {
@@ -181,6 +159,9 @@ public:
         ImGui::ColorPicker3("color picker", col);
         static bool show_scribbles = true;
         ImGui::Checkbox("Show scribbles", &show_scribbles);
+        if (ImGui::Button("Save Image")) {
+            painter_.save_image();
+        }
         ImGui::End();
 
         //ImGui::ShowDemoWindow();
@@ -245,8 +226,7 @@ private:
 
 private:
     GLFWwindow* window_ {};
-    Painter painter_ {};    
-    bool is_ready_ {};
+    PainterHandler painter_;
 };
 
 int main(int argc, char* argv[]) {

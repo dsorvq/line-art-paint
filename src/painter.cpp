@@ -16,6 +16,10 @@ Painter::Painter(const char* filename, int terminal_capacity)
     init_gray(1/2.0);
 }
 
+auto Painter::drawing() const -> const Matrix<u_char>& {
+    return drawing_painted_;
+}
+
 unsigned int color_to_int(const std::array<u_char, 3>& color) {
     unsigned int red = color[0];
     unsigned int green = color[1];
@@ -24,24 +28,29 @@ unsigned int color_to_int(const std::array<u_char, 3>& color) {
     return (red << 16) | (green << 8) | blue;
 }
 
-void blend_color(
-        Matrix<unsigned char>& img,
+void Painter::blend_color(
         std::vector<bool>& mask,
         std::array<u_char, 3> color
 ) {
+    assert(drawing_painted_.channels() == 4);
+    assert(drawing_.channels() == 3);
+
     std::array<float, 3> color_ = {
         color[0]/255.f,
         color[1]/255.f,
         color[2]/255.f
     };
-    auto* p = img.pt();
-    auto size = img.size();
-    for (int i = 0; i < size; i += 3) {
+    auto* p_pt = drawing_painted_.pt();
+    auto* o_pt = drawing_.pt();
+    auto size = drawing_.size();
+    int p_id = 0;
+    for (int i = 0, j = 0; i < size; i += 3, j += 4) {
         if (!mask[i/3])
             continue;
-        p[i] *= color_[0]; 
-        p[i+1] *= color_[1]; 
-        p[i+2] *= color_[2]; 
+        p_pt[j] = o_pt[i] * color_[0];
+        p_pt[j+1] = o_pt[i+1] * color_[1];
+        p_pt[j+2] = o_pt[i+2] * color_[2];
+        p_pt[j+3] = 255;
     }
 }
 
@@ -69,7 +78,7 @@ void Painter::paint(Matrix<unsigned char>& scribbles) {
         std::cout << "flow=" << flow << '\n';
         auto partition = graph.partition(pixels);
 
-        blend_color(drawing_, partition, new_color);
+        blend_color(partition, new_color);
 
         // unite new and old used pixels
         std::transform( 
@@ -168,25 +177,37 @@ bool Painter::add_scribbles_edges(
 }
 
 auto Painter::imread(const char* filename) -> bool {
+    // as a result: 
+    //  drawing_ have 3 channels
+    //  drawing_painted_ have 4 channels
+    
     int w, h, c;
-    unsigned char *data = stbi_load(filename, &w, &h, &c, 0);
+    unsigned char *data = stbi_load(filename, &w, &h, &c, 3);
     if (!data) {
         std::cerr << "Image was not loaded\n" << std::endl;
         return false;
     }
     if (c != 3) {
-        // or conver image to 3 channels 
-        std::cerr << "Only accepting images with 3 channels\n" << std::endl;
-        return false;
+        c = 3;
+        // stbi should handle this
+        std::cerr << "Image was converted to 3 channels\n" << std::endl;
     }
 
+    drawing_painted_.reset(h, w, 4);
     drawing_.reset(h, w, c);
     int size = drawing_.size();
-    auto *pt = drawing_.pt();
-    for (int i = 0; i != size; ++i) {
-        pt[i] = data[i]; 
+    auto *o_pt = drawing_.pt();
+    auto *p_pt = drawing_painted_.pt();
+    int o_id = 0, p_id = 0;
+
+    // data should have 3 channels
+    for (int i = 0; i < size; i += 3) {
+        p_pt[p_id++] = o_pt[o_id++] = data[i]; 
+        p_pt[p_id++] = o_pt[o_id++] = data[i+1]; 
+        p_pt[p_id++] = o_pt[o_id++] = data[i+2]; 
+        p_pt[p_id++] = 255;
     }
-    
+
     stbi_image_free(data);
     return true;
 }
@@ -205,9 +226,9 @@ ImageType get_image_type_(const std::string_view filename) {
         return ImageType::PNG;
     if (extension == ".bmp")
         return ImageType::BMP;
-    if (extension == "TGA")
+    if (extension == ".tga")
         return ImageType::TGA;
-    if (extension == "jpg")
+    if (extension == ".jpg")
         return ImageType::JPG;
 
     return ImageType::NOT_IMG;
@@ -218,31 +239,32 @@ auto Painter::imwrite(const std::string& filename) -> bool {
     if (type == ImageType::NOT_IMG)
         return false;
 
+    auto& img = drawing_painted_;
     int success = 0;
     
     if (type == ImageType::PNG) {
-        success = stbi_write_png(filename.data(), drawing_.width(), drawing_.height(), drawing_.channels(), drawing_.pt(), drawing_.width()*drawing_.channels());
+        success = stbi_write_png(filename.data(), img.width(), img.height(), img.channels(), img.pt(), img.width()*img.channels());
     } 
     else if (type == ImageType::BMP) {
-        success = stbi_write_bmp(filename.data(), drawing_.width(), drawing_.height(), drawing_.channels(), drawing_.pt());
+        success = stbi_write_bmp(filename.data(), img.width(), img.height(), img.channels(), img.pt());
     }
     else if (type == ImageType::TGA) {
-        success = stbi_write_tga(filename.data(), drawing_.width(), drawing_.height(), drawing_.channels(), drawing_.pt());
+        success = stbi_write_tga(filename.data(), img.width(), img.height(), img.channels(), img.pt());
     }
     else if (type == ImageType::JPG) {
-        success = stbi_write_jpg(filename.data(), drawing_.width(), drawing_.height(), drawing_.channels(), drawing_.pt(), 100);
+        success = stbi_write_jpg(filename.data(), img.width(), img.height(), img.channels(), img.pt(), 100);
     }
 
     if (!success)
         return false;
     return true;
-    
 }
 
 void Painter::init_gray(float gamma) {
+    assert(drawing_.channels() == 3);
+
     gray_.reset(drawing_.height(), drawing_.width(), 1);
 
-    // only 3 channel img
     auto p_orig = drawing_.pt();
     auto p_gray = gray_.pt();
     auto size = drawing_.size();

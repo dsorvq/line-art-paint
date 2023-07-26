@@ -16,6 +16,8 @@ public:
     Painter(const char* filename, int terminal_capacity = 23);
     ~Painter() = default;
 
+    auto drawing() const -> const Matrix<unsigned char>&;
+
     void paint(Matrix<unsigned char>& scribbles);
     auto imread(const char* filename) -> bool;
     auto imwrite(const std::string& filename) -> bool;
@@ -30,9 +32,13 @@ private:
     bool add_drawing_edges(
             Dinic<int>& graph,
             std::vector<bool>& used_pixels);
+    void blend_color(
+            std::vector<bool>& mask,
+            std::array<u_char, 3> color);
 
 private:
     Matrix<unsigned char> drawing_;
+    Matrix<unsigned char> drawing_painted_;
     Matrix<unsigned char> gray_;
     const int terminal_capacity_ {23};
 };
