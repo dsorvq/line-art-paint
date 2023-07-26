@@ -32,11 +32,23 @@ private:
     }
 };
 
-int main() {
+int main(int argc, char* argv[]) {
     TimerGuard tg{"total time:"};
 
-    Painter painter("skull/drawing.png");
-    auto scribbles = imread("skull/scribbles.png");
+    std::string drawing_image_path = argv[1];
+    std::string scribbles_image_path = argv[2];
+
+    Painter painter(drawing_image_path.data());
+    if (painter.empty()) {
+        std::cout << "Failed to load the drawing image." << std::endl;
+        return 1;
+    }
+
+    auto scribbles = imread(scribbles_image_path.data());
+    if (scribbles.empty()) {
+        std::cout << "Failed to load the scribble image." << std::endl;
+        return 1;
+    }
 
     painter.paint(scribbles);
 

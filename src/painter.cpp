@@ -20,6 +20,13 @@ auto Painter::drawing() const -> const Matrix<u_char>& {
     return drawing_painted_;
 }
 
+bool Painter::empty() const {
+    return 
+        drawing().empty() 
+        or drawing_painted_.empty()
+        or gray_.empty();
+}
+
 unsigned int color_to_int(const std::array<u_char, 3>& color) {
     unsigned int red = color[0];
     unsigned int green = color[1];

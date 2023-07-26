@@ -17,6 +17,7 @@ public:
     ~Painter() = default;
 
     auto drawing() const -> const Matrix<unsigned char>&;
+    bool empty() const;
 
     void paint(Matrix<unsigned char>& scribbles);
     auto imread(const char* filename) -> bool;
