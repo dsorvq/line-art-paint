@@ -23,7 +23,7 @@ add_executable(
 )
 
 # tests
-option(BUILD_TESTS "Build examples" YES)
+option(BUILD_TESTS "Build examples" ON)
 if(BUILD_TESTS)
     add_subdirectory(googletest)
 
@@ -39,9 +39,23 @@ if(BUILD_TESTS)
 endif()
 
 # examples
-option(BUILD_EXAMPLES "Build examples" OFF)
+option(BUILD_EXAMPLES "Build examples" ON)
 if(BUILD_EXAMPLES)
-    add_subdirectory(ext/imgui)
+    # hardcode imgui here :/
+    #add_subdirectory(ext/imgui)
+    add_library(imgui STATIC
+        ext/imgui/imgui.cpp
+        ext/imgui/imgui_demo.cpp
+        ext/imgui/imgui_draw.cpp
+        ext/imgui/imgui_tables.cpp
+        ext/imgui/imgui_widgets.cpp
+        ext/imgui/backends/imgui_impl_glfw.cpp
+        ext/imgui/backends/imgui_impl_opengl3.cpp
+    )
+    # Set the include directories for ImGui
+    target_include_directories(imgui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ext/imgui)
+    
+
     add_subdirectory(ext/glfw)
     include_directories(ext/glfw/include)
 
