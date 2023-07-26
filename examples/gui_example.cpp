@@ -162,6 +162,9 @@ public:
         if (ImGui::Button("Save Image")) {
             painter_.save_image();
         }
+        if (ImGui::Button("Paint!")) {
+            painter_.solve();
+        }
         ImGui::End();
 
         //ImGui::ShowDemoWindow();
@@ -183,9 +186,6 @@ public:
                 painter_.draw_circle(rmpos.x, rmpos.y, 16, 
                         {u_char(col[0] * 255), u_char(col[1] * 255), u_char(col[2] * 255)});
                 painter_.update_scribbles_texture();
-            }
-            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-                painter_.solve();
             }
             //std::cout << "x:" << rmpos.x << " y:" << rmpos.y << '\n'; 
         }
