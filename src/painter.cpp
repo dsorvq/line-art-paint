@@ -81,11 +81,16 @@ void Painter::paint(Matrix<unsigned char>& scribbles) {
         blend_color(partition, new_color);
 
         // unite new and old used pixels
+        // Warning: vector<bool> may cause valgrind errors
+        /*
         std::transform( 
                 partition.begin(), partition.end(),
                 used_pixels.begin(), used_pixels.begin(),
                 [](bool a, bool b) { return a || b; }
-        );
+        ); */
+        for (int i = 0; i != pixels; ++i) {
+            used_pixels[i] = used_pixels[i] || partition[i];
+        }
     }
 }
 
