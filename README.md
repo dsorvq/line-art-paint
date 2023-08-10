@@ -2,7 +2,7 @@
 
 Line Art Paint is a tool that allows you to color images using special strokes called scribbles. These scribbles provide hints to the tool about which regions to fill with specific colors. The scribbles are kept in a separate layer, giving you the flexibility to modify them as needed.
 
-![Example](https://media.giphy.com/media/nnCnFRh2DxCeocNgQr/giphy.gif)
+![Example](https://media3.giphy.com/media/MmHpDXbpDL9pcrRFpq/giphy.gif)
 
 ## Features
 
@@ -21,3 +21,10 @@ Line Art Paint is a tool that allows you to color images using special strokes c
 1. Draw scribbles to indicate color regions.
 2. **Line Art Paint** fills regions under the line art.
 3. Refine results with additional scribbles.
+
+## Examples
+
+![example-dino](https://github.com/dsorvq/line-art-paint/assets/138303821/0c55b06e-fde2-4744-8787-61b302e1a15c)
+
+
+![example-square](https://github.com/dsorvq/line-art-paint/assets/138303821/878a9722-03a0-46ef-b560-e0f9bbcaa0b1)
