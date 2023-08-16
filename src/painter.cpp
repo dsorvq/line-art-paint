@@ -105,10 +105,10 @@ bool Painter::add_drawing_edges(
         Dinic<int>& graph, 
         std::vector<bool>& used_pixels)
 {
-    assert(!gray.empty());
-    assert(gray.channels() == 1);
-    assert(used_pixels.size() == gray.size());
-    assert(gray.size() + 2 == graph.V());
+    assert(!gray_.empty());
+    assert(gray_.channels() == 1);
+    assert(used_pixels.size() == gray_.size());
+    assert(gray_.size() + 2 == graph.V());
     
     const auto size = gray_.size();
     const auto width = gray_.width();
